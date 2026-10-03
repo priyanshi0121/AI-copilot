@@ -1,0 +1,72 @@
+name: aiops-copilot
+
+services:
+  order-service:
+    build: ./services/order-service
+    container_name: order-service
+    ports:
+      - "5001:5001"
+    environment:
+      - PAYMENT_URL=http://payment-service:5002/pay
+
+  payment-service:
+    build: ./services/payment-service
+    container_name: payment-service
+    ports:
+      - "5002:5002"
+    environment:
+      - SLOW_MODE=false
+
+  # steady synthetic traffic so Prometheus rate() queries always have data
+  loadgen:
+    image: curlimages/curl:latest
+    container_name: loadgen
+    entrypoint:
+      - sh
+      - -c
+      - "while true; do curl -s -X POST http://payment-service:5002/pay >/dev/null 2>&1; curl -s http://order-service:5001/order >/dev/null 2>&1; sleep 1; done"
+    depends_on:
+      - order-service
+      - payment-service
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+  copilot:
+    build: .
+    container_name: copilot
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - PROMETHEUS_URL=http://prometheus:9090
+      - ORDER_SERVICE_URL=http://order-service:5001
+      - PAYMENT_SERVICE_URL=http://payment-service:5002
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/app/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      - prometheus
+      - order-service
+      - payment-service

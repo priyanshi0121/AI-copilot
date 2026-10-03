@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="10">
+  <title>AIOps Copilot</title>
+  <style>
+    :root {
+      --bg: #0b0f17; --panel: #121826; --panel2: #182033; --line: #232d42;
+      --text: #e9eef7; --muted: #94a3b8; --faint: #64748b;
+      --accent: #5b9cf6; --green: #34d399; --red: #f87171; --amber: #fbbf24;
+      --r: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font: 14.5px/1.6 -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+      padding-bottom: 30px;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ---- header ---- */
+    header {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      background: rgba(11,15,23,.9); backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--line); padding: 13px 28px;
+    }
+    .logo { font-size: 16px; font-weight: 700; display: flex; gap: 9px; align-items: center; }
+    .logo span.mark {
+      width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-size: 14px;
+      background: var(--accent);
+    }
+    .chip { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px; }
+    .chip b { font-weight: 600; }
+    .chip.ok b { color: var(--green); } .chip.warn b { color: var(--amber); }
+    header .sp { flex: 1; }
+    .reset { background: none; border: 1px solid var(--line); color: var(--muted); font-size: 12px; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+    .reset:hover { color: var(--red); border-color: var(--red); }
+
+    main { max-width: 1080px; margin: 0 auto; padding: 26px 24px; display: flex; flex-direction: column; gap: 22px; }
+    section { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 20px; }
+    .label { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); font-weight: 600; margin-bottom: 14px; }
+    .label small { text-transform: none; letter-spacing: 0; font-weight: 400; margin-left: 8px; }
+
+    /* ---- services ---- */
+    .services { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 760px) { .services { grid-template-columns: 1fr; } }
+    .svc { background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; }
+    .svc-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .svc-top h3 { font-size: 15px; font-weight: 650; }
+    .st { font-size: 12.5px; font-weight: 700; }
+    .st.up { color: var(--green); } .st.down { color: var(--red); } .st.unknown { color: var(--faint); }
+    svg.spark { display: block; width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 6px 2px; }
+    .svc-stats { display: flex; gap: 18px; margin-top: 10px; font-size: 13px; color: var(--muted); }
+    .svc-stats b { color: var(--text); font-weight: 600; }
+    .svc-stats .bad { color: var(--red); }
+    .flags { display: flex; gap: 6px; margin-top: 8px; }
+    .flag { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; padding: 2px 9px; border-radius: 999px; }
+    .flag.on { background: rgba(248,113,113,.12); color: var(--red); }
+    .flag.off { background: rgba(52,211,153,.08); color: var(--green); }
+    .svc-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
+    /* ---- buttons ---- */
+    .btn {
+      display: inline-block; background: var(--panel); color: var(--text);
+      border: 1px solid var(--line); border-radius: 9px; padding: 7px 14px;
+      font-size: 12.5px; font-weight: 600; cursor: pointer; transition: border-color .15s, color .15s;
+    }
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.primary:hover { color: #fff; filter: brightness(1.08); }
+    .btn.danger { color: var(--red); border-color: rgba(248,113,113,.4); }
+    .btn.danger:hover { border-color: var(--red); color: var(--red); }
+    .btn.sm { padding: 5px 11px; font-size: 11.5px; }
+    form.inline { display: inline; }
+    input, select {
+      background: var(--bg); color: var(--text); border: 1px solid var(--line);
+      border-radius: 9px; padding: 7px 11px; font-size: 13px; outline: none;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+
+    /* ---- layout ---- */
+    .grid { display: grid; grid-template-columns: 1fr 320px; gap: 22px; align-items: start; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .side { display: flex; flex-direction: column; gap: 22px; }
+
+    /* ---- incidents ---- */
+    .inc { background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; margin-bottom: 12px; border-left: 3px solid var(--amber); }
+    .inc.crit { border-left-color: var(--red); }
+    .inc.resolved { border-left-color: var(--green); }
+    .inc-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .inc-head h3 { font-size: 15px; font-weight: 650; }
+    .inc-head .time { margin-left: auto; color: var(--faint); font-size: 12px; }
+    .pill { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 2px 9px; border-radius: 999px; }
+    .pill.amber { color: var(--amber); background: rgba(251,191,36,.1); }
+    .pill.red { color: var(--red); background: rgba(248,113,113,.1); }
+    .pill.green { color: var(--green); background: rgba(52,211,153,.1); }
+    .pill.blue { color: var(--accent); background: rgba(91,156,246,.1); }
+    .sub { color: var(--faint); font-size: 12.5px; margin-top: 4px; }
+    .conf { display: flex; align-items: center; gap: 10px; margin: 12px 0 4px; }
+    .conf .bar { flex: 1; height: 5px; border-radius: 999px; background: var(--bg); overflow: hidden; }
+    .conf .bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+    .conf .pct { font-size: 12.5px; font-weight: 700; }
+    .box { background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 10px 13px; margin: 10px 0; font-size: 13.5px; }
+    .box .t { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-bottom: 3px; }
+    .chips { display: flex; gap: 7px; flex-wrap: wrap; margin: 10px 0; }
+    .chip2 { font-size: 12px; padding: 5px 11px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); color: var(--muted); }
+    .chip2.money { color: var(--amber); border-color: rgba(251,191,36,.35); }
+    ol.steps { margin: 8px 0 4px 20px; font-size: 13.5px; }
+    ol.steps li { margin: 5px 0; }
+    ol.steps .tag { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; background: var(--accent); color: #fff; border-radius: 999px; padding: 1px 7px; margin-left: 7px; }
+    .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 13px; padding-top: 13px; border-top: 1px dashed var(--line); }
+    details.tech { margin-top: 11px; }
+    details.tech summary { font-size: 12px; color: var(--faint); cursor: pointer; }
+    details.tech summary:hover { color: var(--accent); }
+    .tech-body { display: grid; gap: 6px; font-size: 12.5px; color: var(--muted); padding: 10px 0 0; }
+    .tech-body b { color: var(--text); font-weight: 600; }
+    .tech-body .dim { color: var(--faint); }
+    details summary.pm { font-size: 12.5px; color: var(--accent); cursor: pointer; }
+    pre.pm { background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 12px; margin-top: 8px; font-size: 12px; white-space: pre-wrap; color: var(--muted); line-height: 1.6; }
+    .empty { color: var(--faint); text-align: center; padding: 22px; border: 1px dashed var(--line); border-radius: var(--r); font-size: 13.5px; }
+
+    /* ---- side ---- */
+    .row { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+    .row:last-child { border-bottom: none; }
+    .row .l { color: var(--muted); font-size: 12px; }
+    .take { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+    .take.full { color: var(--green); background: rgba(52,211,153,.1); }
+    .take.partial { color: var(--amber); background: rgba(251,191,36,.1); }
+    .take.deferred { color: var(--faint); background: var(--bg); }
+    .total { margin-top: 10px; font-size: 12.5px; color: var(--muted); background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 9px 12px; }
+    .total b { color: var(--amber); }
+    .cluster { border: 1px dashed rgba(192,132,252,.4); border-radius: 9px; padding: 9px 12px; margin-bottom: 8px; font-size: 12.5px; }
+    footer { text-align: center; color: var(--faint); font-size: 12px; padding: 10px 0 0; }
+    footer a { margin: 0 10px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="mark">🤖</span> AIOps Copilot</div>
+  <span class="chip {{ 'ok' if state.detector_alive else 'warn' }}"><b>●</b> detector {{ 'live' if state.detector_alive else 'down' }}</span>
+  <span class="chip {{ 'ok' if state.ai_available else 'warn' }}"><b>AI</b> {{ 'key configured' if state.ai_available else 'rule-based mode — add key in .env' }}</span>
+  <span class="sp"></span>
+  <form class="inline" method="post" action="/admin/reset"><button class="reset" type="submit">Reset demo data</button></form>
+</header>
+
+<main>
+
+  <!-- services -->
+  <section id="services">
+    <div class="label">Services <small>· live latency, last 30 min · threshold {{ state.thresholds.latency_s }}s</small></div>
+    <div class="services">
+      {% for svc in state.services %}
+      <div class="svc">
+        <div class="svc-top">
+          <h3>{{ svc.name }}</h3>
+          <span class="st {{ 'up' if svc.up == 1 else ('down' if svc.up == 0 else 'unknown') }}">{{ '● UP' if svc.up == 1 else ('● DOWN' if svc.up == 0 else '● unknown') }}</span>
+        </div>
+        {% if svc.spark %}
+        <svg class="spark" viewBox="0 0 {{ svc.spark.w }} {{ svc.spark.h }}" preserveAspectRatio="none" height="{{ svc.spark.h }}">
+          <line x1="0" x2="{{ svc.spark.w }}" y1="{{ svc.spark.threshold_y }}" y2="{{ svc.spark.threshold_y }}" stroke="rgba(251,191,36,.45)" stroke-width="1" stroke-dasharray="4 3"/>
+          <polyline fill="none" stroke="{{ 'var(--red)' if svc.spark.over else 'var(--accent)' }}" stroke-width="1.8" points="{{ svc.spark.points }}"/>
+        </svg>
+        {% else %}<div class="sub" style="margin:10px 0">waiting for data…</div>{% endif %}
+        <div class="svc-stats">
+          <span>latency <b class="{{ 'bad' if svc.latency is not none and svc.latency > state.thresholds.latency_s else '' }}">{{ '%.3f' | format(svc.latency) + 's' if svc.latency is not none else '—' }}</b></span>
+          <span>errors <b class="{{ 'bad' if (svc.error_rate or 0) > state.thresholds.error_rate else '' }}">{{ '%.1f' | format((svc.error_rate or 0) * 100) }}%</b></span>
+        </div>
+        {% if svc.chaos %}
+        <div class="flags">
+          <span class="flag {{ 'on' if svc.chaos.slow else 'off' }}">SLOW</span>
+          <span class="flag {{ 'on' if svc.chaos.errors else 'off' }}">ERRORS</span>
+        </div>
+        {% endif %}
+        <div class="svc-actions">
+          {% if svc.name == 'payment-service' %}
+          <form class="inline" method="post" action="/chaos/slow"><input type="hidden" name="service" value="payment-service"><button class="btn sm danger" type="submit">🐢 Inject slowness</button></form>
+          <form class="inline" method="post" action="/chaos/errors"><input type="hidden" name="service" value="payment-service"><button class="btn sm danger" type="submit">💥 Inject errors</button></form>
+          {% endif %}
+          {% if svc.up == 0 %}
+          <form class="inline" method="post" action="/action/resume"><input type="hidden" name="service" value="{{ svc.name }}"><button class="btn sm primary" type="submit">▶ Resume</button></form>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <div class="grid">
+    <div style="display:flex; flex-direction:column; gap:22px; min-width:0;">
+
+      <!-- open incidents -->
+      <section id="incidents">
+        <div class="label">Open incidents <small>· {{ state.open_incidents | length }} active</small></div>
+        {% if not state.open_incidents %}
+        <div class="empty">✅ All quiet — no open incidents. Inject chaos above to watch the copilot work.</div>
+        {% endif %}
+        {% set icon = {'latency': '🐢', 'error': '💥', 'down': '⛔'} %}
+        {% set pill = {'latency': 'amber', 'error': 'red', 'down': 'red'} %}
+        {% for inc in state.open_incidents %}
+        <div class="inc {{ 'crit' if inc.kind in ('error', 'down') else '' }}" id="incident-{{ inc.id }}">
+          <div class="inc-head">
+            <span>{{ icon.get(inc.kind, '⚠️') }}</span>
+            <h3>#{{ inc.id }} {{ inc.service }}</h3>
+            <span class="pill {{ pill.get(inc.kind, 'amber') }}">{{ inc.kind }}</span>
+            <span class="pill {{ 'amber' if inc.status == 'acknowledged' else 'blue' }}">{{ inc.status }}</span>
+            <span class="time">{{ inc.started_at | ago }}</span>
+          </div>
+          <div class="sub">observed <b style="color:var(--text)">{{ '%.3f' | format(inc.detected_value) }}</b> · threshold {{ inc.threshold }} · priority ${{ inc.priority_score or 0 }}/fix-min</div>
+          <div class="conf">
+            <span class="sub" style="margin:0">confidence</span>
+            <div class="bar"><i style="width: {{ inc.confidence or 0 }}%"></i></div>
+            <span class="pct">{{ inc.confidence if inc.confidence is not none else '—' }}%</span>
+          </div>
+          <div class="box"><span class="t">🎯 Root cause — {{ inc.ai_engine or 'analyzing…' }}</span>{{ inc.root_cause or 'analyzing…' }}</div>
+          <div class="box"><span class="t">🔗 Deploy correlation</span>{{ inc.correlated_deploy.explanation if inc.correlated_deploy else 'No deploys in the last 30 minutes' }}</div>
+          {% if inc.cost_estimate %}
+          <div class="chips">
+            <span class="chip2 money">💰 ${{ inc.cost_estimate.per_hour_usd }}/hr</span>
+            <span class="chip2 money">📅 ${{ inc.cost_estimate.projected_24h_usd }} projected 24h</span>
+          </div>
+          {% endif %}
+          {% if inc.runbook %}
+          <ol class="steps">
+            {% for step in inc.runbook %}<li>{{ step.step }}{% if step.action %}<span class="tag">auto: {{ step.action }}</span>{% endif %}</li>{% endfor %}
+          </ol>
+          {% else %}<div class="sub">drafting runbook…</div>{% endif %}
+          <div class="acts">
+            <form class="inline" method="post" action="/action/rollback"><input type="hidden" name="incident_id" value="{{ inc.id }}"><button class="btn primary" type="submit">⏪ Rollback</button></form>
+            <form class="inline" method="post" action="/action/restart"><input type="hidden" name="incident_id" value="{{ inc.id }}"><button class="btn" type="submit">🔄 Restart</button></form>
+            <form class="inline" method="post" action="/action/isolate"><input type="hidden" name="incident_id" value="{{ inc.id }}"><button class="btn danger" type="submit">⛔ Isolate</button></form>
+            <form class="inline" method="post" action="/ack"><input type="hidden" name="incident_id" value="{{ inc.id }}"><button class="btn" type="submit">👀 Acknowledge</button></form>
+          </div>
+          <details class="tech">
+            <summary>Technical details — DFS path · blast radius · cost model · timeline</summary>
+            <div class="tech-body">
+              <div><b>Root-cause path (DFS):</b> {{ (inc.root_cause_path or []) | join(' → ') or '—' }}</div>
+              <div><b>Blast radius (BFS):</b>
+                {% if inc.blast_radius %}{% for layer in inc.blast_radius %}layer {{ loop.index }}: {{ layer | join(', ') }}{% if not loop.last %} &nbsp;·&nbsp; {% endif %}{% endfor %}{% else %}none — leaf service{% endif %}
+              </div>
+              {% if inc.cost_estimate %}<div><b>Cost model:</b> <span class="dim">{{ inc.cost_estimate.assumptions }}</span></div>{% endif %}
+              {% if inc.ai_reasoning %}<div><b>Engine reasoning:</b> <span class="dim">{{ inc.ai_reasoning }}</span></div>{% endif %}
+              <div><b>Timeline:</b> {% for t in inc.timeline %}<span class="dim">{{ t.ts | ago }} — {{ t.event }}</span>{% if not loop.last %} · {% endif %}{% endfor %}</div>
+            </div>
+          </details>
+        </div>
+        {% endfor %}
+      </section>
+
+      <!-- resolved -->
+      <section id="history">
+        <div class="label">Resolved incidents <small>· with auto-generated postmortems</small></div>
+        {% set resolved = state.incidents | selectattr('status', 'equalto', 'resolved') | list %}
+        {% if not resolved %}<div class="empty">Nothing resolved yet — resolved incidents land here with a postmortem.</div>{% endif %}
+        {% for inc in resolved %}
+        <div class="inc resolved" id="incident-{{ inc.id }}">
+          <div class="inc-head">
+            <span>✅</span>
+            <h3>#{{ inc.id }} {{ inc.service }}</h3>
+            <span class="pill {{ pill.get(inc.kind, 'amber') }}">{{ inc.kind }}</span>
+            <span class="pill green">resolved</span>
+            <span class="time">{{ inc.resolved_at | ago }}</span>
+          </div>
+          <div class="sub">{{ inc.resolution }}</div>
+          {% if inc.postmortem %}
+          <details class="tech">
+            <summary class="pm">📄 Postmortem</summary>
+            <pre class="pm">{{ inc.postmortem }}</pre>
+          </details>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </section>
+    </div>
+
+    <!-- sidebar -->
+    <div class="side">
+      <section id="plan">
+        <div class="label">Response plan <small>· {{ state.plan.capacity_min }} min window</small></div>
+        {% if state.plan.plan or state.plan.deferred %}
+          {% for item in state.plan.plan %}
+          <div class="row">
+            <span><b>#{{ item.incident_id }}</b> {{ item.service.split('-')[0] }} · {{ item.kind }}<br><span class="l">${{ '%.2f' | format(item.value_usd) }} · ${{ '%.2f' | format(item.ratio_usd_per_min) }}/min</span></span>
+            <span class="take {{ 'full' if item.take == 'full' else ('partial' if item.take.startswith('partial') else 'deferred') }}">{{ 'fix now' if item.take == 'full' else ('partial' if item.take.startswith('partial') else 'defer') }}</span>
+          </div>
+          {% endfor %}
+          {% for item in state.plan.deferred %}
+          <div class="row">
+            <span><b>#{{ item.incident_id }}</b> {{ item.service.split('-')[0] }} · {{ item.kind }}<br><span class="l">${{ '%.2f' | format(item.value_usd) }} impact</span></span>
+            <span class="take deferred">defer</span>
+          </div>
+          {% endfor %}
+          <div class="total">Recovering <b>${{ '%.2f' | format(state.plan.covered_usd) }}</b> of ${{ '%.2f' | format(state.plan.total_at_risk_usd) }} at risk.</div>
+        {% else %}
+        <div class="empty">Nothing to prioritize yet.</div>
+        {% endif %}
+      </section>
+
+      <section>
+        <div class="label">Alert clusters <small>· {{ state.clusters | length }}</small></div>
+        {% if state.clusters %}
+          {% for c in state.clusters %}<div class="cluster">🧩 <b>{{ c.label }}</b><br><span class="l">incidents #{{ c.incident_ids | join(', #') }}</span></div>{% endfor %}
+        {% else %}<div class="empty">No active clusters.</div>{% endif %}
+      </section>
+
+      <section id="deploys">
+        <div class="label">Recent deploys <small>· correlation source</small></div>
+        {% for d in state.deploys %}
+        <div class="row">
+          <span><b>#{{ d.id }}</b> {{ d.service.split('-')[0] }} {{ d.version }}<br><span class="l">{{ d.note }}</span></span>
+          <span class="l" style="white-space:nowrap">{{ d.deployed_at | ago }}</span>
+        </div>
+        {% endfor %}
+        <form method="post" action="/deploys" style="margin-top:12px; display:flex; gap:7px; flex-wrap:wrap">
+          <select name="service" style="flex:1; min-width:120px"><option value="payment-service">payment</option><option value="order-service">order</option></select>
+          <input name="note" placeholder="what changed?" style="flex:2; min-width:130px">
+          <button class="btn sm" type="submit">📌 Record</button>
+        </form>
+      </section>
+    </div>
+  </div>
+
+  <footer>
+    AIOps Copilot · sandboxed actions touch only this project's containers · {{ state.graph_cycles | length }} circular dependencies
+    <br><a href="http://localhost:3000">Grafana</a> · <a href="http://localhost:9090">Prometheus</a> · <a href="/api/state">API state</a>
+  </footer>
+
+</main>
+
+<script>
+  window.addEventListener('load', () => {
+    const y = sessionStorage.getItem('aiops-scroll');
+    if (y) window.scrollTo(0, parseInt(y, 10));
+  });
+  window.addEventListener('beforeunload', () => {
+    sessionStorage.setItem('aiops-scroll', window.scrollY);
+  });
+</script>
+</body>
+</html>

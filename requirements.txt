@@ -1,0 +1,8 @@
+flask>=3.0
+prometheus-client>=0.21
+requests>=2.31
+docker>=7.1
+anthropic>=0.42
+openai>=1.54
+python-dotenv>=1.0
+pytest>=8.0
