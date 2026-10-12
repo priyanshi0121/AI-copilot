@@ -114,11 +114,38 @@ Remediation buttons only ever touch this project's two containers (hard allow-li
 
 No production systems, no other containers — safe to run anywhere.
 
+Where there is no Docker socket (the Render bundle), **Restart / Isolate / Resume
+are refused with an on-screen explanation** and only **Rollback** acts, clearing
+chaos flags over HTTP. The UI marks this as `hosted actions: rollback only` so the
+limitation is never hidden.
+
 ## Cost model assumptions (tweak in `.env`)
 
 - Latency incidents: sustained slowness ≈ accidental CPU over-provisioning → extra vCPU-hours × `$0.0446/vCPU-hr`.
 - Error incidents: failed transactions × `avg order value $42` = revenue-at-risk.
 - All numbers are documented demo estimates, not a cloud bill.
+
+## Deploy to Render (public URL)
+
+`docker-compose.yml` stays the full local deployment. For a shareable public URL,
+[`render.yaml`](render.yaml) deploys an **all-in-one bundle** — Prometheus, both
+services, a traffic generator and the copilot in one container behind a single
+port (`deploy/allinone/`), because Render cannot run Compose, gives containers no
+Docker socket, and its free plan offers only web services with no private
+networking between them.
+
+```bash
+# one-time: connect the repo at https://dashboard.render.com → New + → Blueprint
+```
+
+What works there: detection, DFS root-cause path, BFS blast radius, deploy
+correlation, cost model, knapsack response plan, clustering, runbooks,
+postmortems, chaos injection, the proxied Prometheus query UI, and **Rollback**
+(clears chaos flags over HTTP). What needs local Docker: **restart / isolate /
+resume**, and Grafana — the dashboard labels this honestly in hosted mode.
+
+👉 Full step-by-step guide, including a pre-demo warm-up command and the free-tier
+behaviour to expect: **[DEPLOY_RENDER.md](DEPLOY_RENDER.md)**
 
 ## Local development (no Docker for the copilot)
 
@@ -134,7 +161,7 @@ python -m dashboard.app           # copilot on :8000, localhost URLs
 ## Testing
 
 ```bash
-./venv/bin/python -m pytest tests/ -v     # 35 unit tests (algorithms, store, actions)
+./venv/bin/python -m pytest tests/ -v     # 39 unit tests (algorithms, store, actions, hosted mode)
 ./venv/bin/python scripts/e2e_test.py     # 62 live checks against the running stack
 ```
 
@@ -147,6 +174,9 @@ copilot/           detection, correlation, graph algorithms, cost, actions, AI c
 dashboard/         Flask UI (incidents, runbooks, chaos triggers, deploy recorder)
 data/              incidents.json (runtime), deploys.json (seeded history)
 tests/             pytest suite for the algorithm layer
+deploy/allinone/   single-container Render bundle (Dockerfile, supervisord, configs)
+render.yaml        Render Blueprint for the all-in-one deployment
+DEPLOY_RENDER.md   step-by-step hosted deployment guide
 scripts/demo.sh    end-to-end chaos → detect → fix demo
 scripts/e2e_test.py  62-check live test suite
 ```

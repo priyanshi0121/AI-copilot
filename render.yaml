@@ -1,0 +1,39 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# WHY THIS IS ONE SERVICE
+# Render cannot run docker-compose, and it gives containers no Docker socket.
+# Its free plan also offers only web services (no private services, no workers,
+# no disks), and free web services cannot receive private-network traffic — so
+# the six containers in docker-compose.yml cannot be deployed as six free
+# services that talk to each other. This blueprint bundles Prometheus + both
+# services + the copilot into ONE container (deploy/allinone/Dockerfile) behind
+# a single public URL. docker-compose.yml stays the full local deployment.
+#
+# WORKS HERE: detection loop, root-cause path (DFS), blast radius (BFS), deploy
+# correlation, cost model, knapsack response plan, clustering, runbooks,
+# postmortems, and Rollback (clears chaos flags over HTTP).
+# NEEDS LOCAL DOCKER: restart / isolate / resume — they drive the Docker SDK and
+# are disabled with an on-screen explanation when no socket is present.
+
+services:
+  - type: web
+    name: aiops-copilot
+    runtime: docker
+    dockerfilePath: ./deploy/allinone/Dockerfile
+    dockerContext: .
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: AI_PROVIDER
+        value: anthropic
+      # Optional: add a key in the Render dashboard (kept out of the repo) to
+      # switch diagnosis from the deterministic rule-based engine to real model
+      # reasoning. Leave blank to keep rule-based mode, which is fully functional.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: LATENCY_THRESHOLD_S
+        value: "0.5"
+      - key: ERROR_RATE_THRESHOLD
+        value: "0.3"

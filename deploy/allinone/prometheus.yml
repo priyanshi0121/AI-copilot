@@ -1,0 +1,12 @@
+# In-bundle scrape config: both services run in this same container, so the
+# targets are loopback. Ports match the pinned PORT values in supervisord.conf.
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: 'order-service'
+    static_configs:
+      - targets: ['127.0.0.1:5001']
+  - job_name: 'payment-service'
+    static_configs:
+      - targets: ['127.0.0.1:5002']

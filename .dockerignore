@@ -1,0 +1,27 @@
+# Keep the build context small, and never bake local-only files into an image.
+
+# python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pytest_cache
+
+# vcs / tooling / os
+.git/
+.gitignore
+.zcode/
+.claude/
+.DS_Store
+
+# unrelated project that happens to live in this folder
+arvr project/
+
+# runtime state — the app seeds these on first run
+data/incidents.json
+data/deploys.json
+
+# real API keys
+.env
+.env.local

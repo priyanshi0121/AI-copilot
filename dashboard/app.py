@@ -1,11 +1,12 @@
 """AIOps Copilot dashboard: one Flask process that renders incident state and
 runs the detection loop in a background thread. Also exposes the chaos
 triggers, deploy recording, and sandboxed remediation actions."""
+import os
 import threading
 from datetime import datetime, timezone
 
 import requests
-from flask import Flask, jsonify, redirect, render_template, request, url_for
+from flask import Flask, Response, jsonify, redirect, render_template, request, url_for
 
 from copilot import actions as copilot_actions
 from copilot import correlation, metrics, prioritizer
@@ -112,6 +113,8 @@ def collect_state() -> dict:
         "graph_cycles": find_cycles(),
         "graph": GRAPH_SERVICES,
         "detector_alive": bool(detector and detector.is_alive()),
+        "actions_available": copilot_actions.docker_available(),
+        "hosted_mode": not copilot_actions.docker_available(),
         "thresholds": {"latency_s": config.latency_threshold_s, "error_rate": config.error_rate_threshold},
     }
 
@@ -198,9 +201,40 @@ def reset_demo():
     return redirect(url_for("index"))
 
 
+# ---- Prometheus UI proxy ------------------------------------------------------
+# Hosted deployments expose a single HTTP port, so the bundled Prometheus UI is
+# reached through the dashboard instead of its own port. config.prometheus_url
+# already carries any route prefix the server was started with, so this works
+# both locally (root) and in the all-in-one bundle (/prometheus).
+
+@app.route("/prometheus", defaults={"path": ""}, methods=["GET", "POST"])
+@app.route("/prometheus/<path:path>", methods=["GET", "POST"])
+def prometheus_ui(path):
+    upstream = f"{config.prometheus_url}/{path}"
+    fwd_headers = {"Accept-Encoding": "identity"}
+    if request.content_type:
+        fwd_headers["Content-Type"] = request.content_type
+    try:
+        resp = requests.request(
+            request.method,
+            upstream,
+            params=request.args,
+            data=request.get_data(),
+            headers=fwd_headers,
+            stream=True,
+            timeout=15,
+        )
+    except requests.RequestException as exc:
+        return Response(f"Prometheus unreachable at {config.prometheus_url}: {exc}", status=502, mimetype="text/plain")
+
+    drop = {"content-encoding", "content-length", "transfer-encoding", "connection"}
+    headers = [(k, v) for k, v in resp.raw.headers.items() if k.lower() not in drop]
+    return Response(resp.iter_content(chunk_size=8192), status=resp.status_code, headers=headers)
+
+
 def main():
     start_detector()
-    app.run(host="0.0.0.0", port=8000, threaded=True, use_reloader=False)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), threaded=True, use_reloader=False)
 
 
 if __name__ == "__main__":

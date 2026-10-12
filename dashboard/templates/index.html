@@ -75,6 +75,9 @@
     .btn.danger { color: var(--red); border-color: rgba(248,113,113,.4); }
     .btn.danger:hover { border-color: var(--red); color: var(--red); }
     .btn.sm { padding: 5px 11px; font-size: 11.5px; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn:disabled:hover { border-color: var(--line); color: var(--text); }
+    .hint { font-size: 12px; color: var(--faint); margin-top: 9px; padding-top: 9px; border-top: 1px dashed var(--line); }
     form.inline { display: inline; }
     input, select {
       background: var(--bg); color: var(--text); border: 1px solid var(--line);
@@ -144,6 +147,7 @@
   <div class="logo"><span class="mark">🤖</span> AIOps Copilot</div>
   <span class="chip {{ 'ok' if state.detector_alive else 'warn' }}"><b>●</b> detector {{ 'live' if state.detector_alive else 'down' }}</span>
   <span class="chip {{ 'ok' if state.ai_available else 'warn' }}"><b>AI</b> {{ 'key configured' if state.ai_available else 'rule-based mode — add key in .env' }}</span>
+  {% if state.hosted_mode %}<span class="chip warn" title="No Docker socket here: only Rollback can act on infrastructure"><b>hosted</b> actions: rollback only</span>{% endif %}
   <span class="sp"></span>
   <form class="inline" method="post" action="/admin/reset"><button class="reset" type="submit">Reset demo data</button></form>
 </header>
@@ -182,7 +186,11 @@
           <form class="inline" method="post" action="/chaos/errors"><input type="hidden" name="service" value="payment-service"><button class="btn sm danger" type="submit">💥 Inject errors</button></form>
           {% endif %}
           {% if svc.up == 0 %}
+          {% if state.actions_available %}
           <form class="inline" method="post" action="/action/resume"><input type="hidden" name="service" value="{{ svc.name }}"><button class="btn sm primary" type="submit">▶ Resume</button></form>
+          {% else %}
+          <button class="btn sm" type="button" disabled title="Needs a Docker socket — available in local Docker mode">▶ Resume</button>
+          {% endif %}
           {% endif %}
         </div>
       </div>
@@ -231,10 +239,18 @@
           {% else %}<div class="sub">drafting runbook…</div>{% endif %}
           <div class="acts">
             <form class="inline" method="post" action="/action/rollback"><input type="hidden" name="incident_id" value="{{ inc.id }}"><button class="btn primary" type="submit">⏪ Rollback</button></form>
+            {% if state.actions_available %}
             <form class="inline" method="post" action="/action/restart"><input type="hidden" name="incident_id" value="{{ inc.id }}"><button class="btn" type="submit">🔄 Restart</button></form>
             <form class="inline" method="post" action="/action/isolate"><input type="hidden" name="incident_id" value="{{ inc.id }}"><button class="btn danger" type="submit">⛔ Isolate</button></form>
+            {% else %}
+            <button class="btn" type="button" disabled title="Needs a Docker socket — available in local Docker mode">🔄 Restart</button>
+            <button class="btn danger" type="button" disabled title="Needs a Docker socket — available in local Docker mode">⛔ Isolate</button>
+            {% endif %}
             <form class="inline" method="post" action="/ack"><input type="hidden" name="incident_id" value="{{ inc.id }}"><button class="btn" type="submit">👀 Acknowledge</button></form>
           </div>
+          {% if not state.actions_available %}
+          <div class="hint">ⓘ Hosted mode: no Docker socket, so only <b>Rollback</b> touches infrastructure — it clears the service's chaos flags over HTTP. Restart / Isolate / Resume run in the local Docker Compose demo.</div>
+          {% endif %}
           <details class="tech">
             <summary>Technical details — DFS path · blast radius · cost model · timeline</summary>
             <div class="tech-body">
@@ -326,7 +342,12 @@
 
   <footer>
     AIOps Copilot · sandboxed actions touch only this project's containers · {{ state.graph_cycles | length }} circular dependencies
+    {% if state.hosted_mode %}
+    <br><a href="/prometheus/graph">Prometheus query UI</a> · <a href="/api/state">API state</a>
+    <br>hosted mode (single port) — Grafana and the Docker-backed actions run in the local Compose demo
+    {% else %}
     <br><a href="http://localhost:3000">Grafana</a> · <a href="http://localhost:9090">Prometheus</a> · <a href="/api/state">API state</a>
+    {% endif %}
   </footer>
 
 </main>
